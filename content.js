@@ -170,14 +170,14 @@ function isValidCreditCard(number) {
 }
 
 // Check for context keywords around a match
-function hasContext(text, index, keywords, windowSize = 40) {
+function hasContext(text, index, keywords, windowSize = 60) {
     if (!keywords || keywords.length === 0) return true;
 
     const start = Math.max(0, index - windowSize);
-    const end = Math.min(text.length, index + keywords[0].length + windowSize); // Simplified window
-    const surrounding = text.substring(start, end).toLowerCase();
+    const end = Math.min(text.length, index + windowSize + 10);
+    const surrounding = text.substring(start, end).toLocaleLowerCase('tr-TR');
 
-    return keywords.some(kw => surrounding.includes(kw.toLowerCase()));
+    return keywords.some(kw => surrounding.includes(kw.toLocaleLowerCase('tr-TR')));
 }
 
 // Valid IP address check
@@ -199,13 +199,11 @@ function isValidIP(ip) {
     return true;
 }
 
-// Sensitive data patterns (Enhanced)
 const SENSITIVE_PATTERNS = [
     {
         name: 'Email',
-        pattern: /\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b/g,
+        pattern: /\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b/gi,
         validate: (match) => {
-            // Exclude example emails
             const examples = ['example', 'test', 'sample', 'user', 'email', 'ornek', 'mail'];
             const local = match.split('@')[0].toLowerCase();
             return !examples.some(ex => local.includes(ex));
@@ -213,38 +211,31 @@ const SENSITIVE_PATTERNS = [
         mask: (match) => match.split('@')[0].slice(0, 2) + '***@' + match.split('@')[1]
     },
     {
-        name: 'Phone (TR)',
-        pattern: /(?:\+90|0)?[\s.-]?5[0-9]{2}[\s.-]?[0-9]{3}[\s.-]?[0-9]{2}[\s.-]?[0-9]{2}/g,
-        contextKeywords: ['tel', 'phone', 'gsm', 'no', 'numara', 'iletişim', 'contact', 'call'],
-        validate: (match, index, fullText, item) => hasContext(fullText, index, item.contextKeywords),
-        mask: () => '05** *** ** **'
-    },
-    {
-        name: 'Phone (US)',
-        pattern: /(?:\+1[\s.-]?)?\(?[2-9]\d{2}\)?[\s.-]?[2-9]\d{2}[\s.-]?\d{4}/g,
-        contextKeywords: ['tel', 'phone', 'gsm', 'cell', 'mobile', 'call', 'contact'],
-        validate: (match, index, fullText, item) => hasContext(fullText, index, item.contextKeywords),
-        mask: (match) => match.slice(0, 6) + '***-****'
-    },
-    {
-        name: 'Phone (UK)',
-        pattern: /(?:\+44|0)[\s.-]?(?:[1-9]\d{1,4}|[1-9]\d{1,3}[\s.-]?\d{3,6})/g,
-        contextKeywords: ['tel', 'phone', 'gsm', 'mobile', 'call', 'contact'],
-        validate: (match, index, fullText, item) => {
-            const digits = match.replace(/[^\d]/g, '');
-            return digits.length >= 10 && hasContext(fullText, index, item.contextKeywords);
+        name: 'API Key',
+        pattern: /(?:\b(?:sk-|ant-api-|AC[a-f0-9]{32}|sk_live_|ghp_|gho_|ghu_|ghs_|ghr_|xox[baprs]-|AIza)[0-9A-Za-z\-_]{20,}\b)|(?:\b(?:api[_-]?key|apikey|secret[_-]?key|access[_-]?token|bearer|auth[_-]?token|private[_-]?key|credential|token)[\s:=]+["']?([a-zA-Z0-9.\-_/+=]{16,})["']?)/gi,
+        validate: (match) => {
+            const forbidden = ['example', 'test', 'your', 'dummy', 'null', 'undefined', 'password', 'şifre'];
+            return !forbidden.some(f => match.toLowerCase().includes(f));
         },
-        mask: (match) => match.slice(0, 5) + ' ******'
+        mask: () => '[API_KEY_HIDDEN]'
     },
     {
-        name: 'Credit Card',
-        pattern: /\b(?:\d{4}[\s.-]?){3}\d{4}\b/g,
-        contextKeywords: ['card', 'credit', 'debit', 'mastercard', 'visa', 'kart', 'kredi'],
-        validate: (match, index, fullText, item) => isValidCreditCard(match) && hasContext(fullText, index, item.contextKeywords),
-        mask: (match) => {
-            const cleaned = match.replace(/[\s.-]/g, '');
-            return cleaned.slice(0, 4) + ' **** **** ' + cleaned.slice(-4);
-        }
+        name: 'Password',
+        pattern: /(?:password|şifre|parola|pwd|pass|sifre|secret)[\s:=]+["']?([^\s"']{4,64})["']?/gi,
+        validate: (match) => {
+            const parts = match.split(/[:=]/);
+            if (parts.length < 2) return false;
+            const value = parts[1].replace(/["'\s]/g, '');
+            const placeholders = ['****', 'xxxx', '1234', 'password', 'şifre', 'test', 'sample', 'admin', 'qwerty', 'root'];
+            return value.length >= 4 && !placeholders.includes(value.toLowerCase());
+        },
+        mask: () => '[PASSWORD_HIDDEN]'
+    },
+    {
+        name: 'DB Connection',
+        pattern: /(?:mongodb|mysql|postgres|postgresql|mssql|oracle|redis|jdbc|[a-z0-9]+db)[+a-z]*:\/\/(?:[^\s"':]+:[^\s"':]+@)?[^\s"']+/gi,
+        validate: (match) => match.includes('://'),
+        mask: () => '[DB_CONNECTION_HIDDEN]'
     },
     {
         name: 'National ID (TR)',
@@ -254,218 +245,59 @@ const SENSITIVE_PATTERNS = [
         mask: (match) => match.slice(0, 3) + '*****' + match.slice(-3)
     },
     {
-        name: 'SSN (US)',
-        pattern: /\b\d{3}[- ]\d{2}[- ]\d{4}\b/g,
-        contextKeywords: ['ssn', 'social', 'security', 'tax', 'id'],
-        validate: (match, index, fullText, item) => {
-            const parts = match.split(/[- ]/);
-            const basic = parts[0] !== '000' && parts[0] !== '666' && (parseInt(parts[0]) < 900) && parts[1] !== '00' && parts[2] !== '0000';
-            return basic && hasContext(fullText, index, item.contextKeywords);
-        },
-        mask: () => '***-**-****'
-    },
-    {
-        name: 'NI Number (UK)',
-        pattern: /\b[A-CEGHJ-PR-TW-Z][A-CEGHJ-NPR-TW-Z]\s?\d{2}\s?\d{2}\s?\d{2}\s?[A-D]\b/gi,
-        contextKeywords: ['ni', 'national', 'insurance', 'tax', 'id', 'employment'],
-        validate: (match, index, fullText, item) => hasContext(fullText, index, item.contextKeywords),
-        mask: (match) => match.slice(0, 2) + ' ** ** ** ' + match.slice(-1)
-    },
-    {
-        name: 'NHS Number (UK)',
-        pattern: /\b\d{3}\s?\d{3}\s?\d{4}\b/g,
-        contextKeywords: ['nhs', 'health', 'medical', 'patient'],
-        validate: (match, index, fullText, item) => hasContext(fullText, index, item.contextKeywords),
-        mask: (match) => match.slice(0, 3) + ' *** ****'
-    },
-    {
-        name: 'API Key',
-        pattern: /(?:api[_-]?key|apikey|secret[_-]?key|access[_-]?token|bearer|auth[_-]?token|private[_-]?key)[\s:=]+["']?[\w\-\.]{20,}["']?/gi,
-        validate: () => true,
-        mask: () => '[API_KEY_HIDDEN]'
-    },
-    {
-        name: 'Password',
-        pattern: /(?:password|şifre|parola|pwd|pass|sifre)[\s:=]+["']?[^\s"']{4,30}["']?/gi,
-        validate: (match) => {
-            // If not too short or placeholder
-            const value = match.split(/[:=]/)[1]?.replace(/["'\s]/g, '') || '';
-            const placeholders = ['****', 'xxxx', '1234', 'password', 'şifre', 'test'];
-            return value.length >= 4 && !placeholders.includes(value.toLowerCase());
-        },
-        mask: () => '[PASSWORD_HIDDEN]'
+        name: 'Credit Card',
+        pattern: /\b(?:\d{4}[\s.-]?){3}\d{4}\b/g,
+        contextKeywords: ['card', 'credit', 'debit', 'mastercard', 'visa', 'kart', 'kredi', 'payment', 'exp'],
+        validate: (match, index, fullText, item) => isValidCreditCard(match) && hasContext(fullText, index, item.contextKeywords),
+        mask: (match) => {
+            const cleaned = match.replace(/[\s.-]/g, '');
+            return cleaned.slice(0, 4) + ' **** **** ' + cleaned.slice(-4);
+        }
     },
     {
         name: 'IBAN (TR)',
-        pattern: /\bTR\s?\d{2}[\s]?\d{4}[\s]?\d{4}[\s]?\d{4}[\s]?\d{4}[\s]?\d{2}\b/gi,
+        pattern: /\bTR\s?\d{2}[\s]?\d{4}[\s]?\d{4}[\s]?\d{4}[\s]?\d{4}[\s]?\d{4}[\s]?\d{2}\b/gi,
         validate: () => true,
-        mask: (match) => 'TR** **** **** **** **** ' + match.slice(-2)
-    },
-    {
-        name: 'Private IP',
-        pattern: /\b(?:\d{1,3}\.){3}\d{1,3}\b/g,
-        validate: isValidIP,
-        mask: () => '***.***.***.***'
-    },
-    {
-        name: 'AWS Key',
-        pattern: /\b(?:AKIA|ABIA|ACCA|ASIA)[A-Z0-9]{16}\b/g,
-        validate: () => true,
-        mask: () => '[AWS_KEY_HIDDEN]'
-    },
-    {
-        name: 'Private Key',
-        pattern: /-----BEGIN\s+(?:RSA\s+)?PRIVATE\s+KEY-----/gi,
-        validate: () => true,
-        mask: () => '[PRIVATE_KEY_HIDDEN]'
-    },
-    // ========== OFFICE/CORPORATE DATA ==========
-    {
-        name: 'SSN (SGK)',
-        pattern: /\b(?:sgk|sigorta)\s*(?:no|numarası?)?\s*[:\s]?\s*\d{10,12}\b/gi,
-        validate: () => true,
-        mask: () => '[SSN_HIDDEN]'
-    },
-    {
-        name: 'Tax ID',
-        pattern: /\b(?:vergi|vkn)\s*(?:no|numarası?|kimlik)?\s*[:\s]?\s*\d{10,11}\b/gi,
-        validate: () => true,
-        mask: () => '[TAX_ID_HIDDEN]'
-    },
-    {
-        name: 'DB Connection',
-        pattern: /(?:mongodb|mysql|postgres|postgresql|mssql|oracle|redis|jdbc)[+a-z]*:\/\/[^\s"']+/gi,
-        validate: () => true,
-        mask: () => '[DB_CONNECTION_HIDDEN]'
-    },
-    {
-        name: 'Server Info',
-        pattern: /(?:ssh|ftp|sftp|rdp|vnc):\/\/[^\s"']+|(?:root|admin|administrator)@[a-zA-Z0-9.-]+/gi,
-        validate: () => true,
-        mask: () => '[SERVER_INFO_HIDDEN]'
-    },
-    {
-        name: 'Salary Info',
-        pattern: /(?:maaş|maas|ücret|ucret|salary|gelir)\s*[:\s]?\s*[\d.,]+\s*(?:tl|₺|try|usd|\$|eur|€)?/gi,
-        validate: (match) => {
-            // Only large amounts (> 1000)
-            const amount = parseFloat(match.replace(/[^\d]/g, ''));
-            return amount > 1000;
-        },
-        mask: () => '[SALARY_HIDDEN]'
+        mask: (match) => 'TR** **** **** **** **** ' + match.replace(/[\s]/g, '').slice(-2)
     },
     {
         name: 'Customer/Employee ID',
-        pattern: /(?:müşteri|musteri|sicil|personel|çalışan|calisancalisan)\s*(?:no|numarası?)?\s*[:\s]?\s*[A-Z]?\d{6,12}\b/gi,
-        validate: () => true,
+        pattern: /\b(?:müşteri|musteri|sicil|personel|çalışan|employee|staff|user|customer|id|no)\s*(?:no|numarası?|id)?\s*[:\s]?\s*([A-Z]{1,4}[- ]?\d{4,12})\b|\b([A-Z]{2,4}[-]\d{4,10})\b/gi,
+        validate: (match) => {
+            const forbidden = ['http', 'utf', 'ver', 'jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+            return !forbidden.some(f => match.toLowerCase().includes(f));
+        },
         mask: () => '[ID_HIDDEN]'
     },
     {
-        name: 'License Plate (TR)',
-        pattern: /\b(0[1-9]|[1-7][0-9]|8[01])\s*[A-Z]{1,3}\s*\d{2,4}\b/g,
-        contextKeywords: ['plaka', 'plate', 'araç', 'araba', 'car', 'vehicle'],
-        validate: (match, index, fullText, item) => hasContext(fullText, index, item.contextKeywords),
-        mask: (match) => match.slice(0, 2) + ' *** ' + match.slice(-2)
-    },
-    {
-        name: 'Birth Date',
-        pattern: /(?:doğum|dogum|d\.tarihi)\s*(?:tarihi)?\s*[:\s]?\s*\d{1,2}[./-]\d{1,2}[./-]\d{2,4}/gi,
-        validate: () => true,
-        mask: () => '[BIRTH_DATE_HIDDEN]'
+        name: 'Phone Number',
+        pattern: /(?:\+?\d{1,3}[\s.-]?)?\(?\d{2,4}\)?[\s.-]?\d{3,4}[\s.-]?\d{2,4}(?:[\s.-]?\d{2,4})?/g,
+        contextKeywords: ['tel', 'phone', 'gsm', 'numara', 'contact', 'call', 'mobile', 'cep'],
+        validate: (match, index, fullText, item) => {
+            const digits = match.replace(/[^\d]/g, '');
+            if (digits.length < 7 || digits.length > 15) return false;
+            if (/^(19|20)\d{2}$/.test(digits)) return false;
+            return hasContext(fullText, index, item.contextKeywords);
+        },
+        mask: () => '[PHONE_HIDDEN]'
     },
     {
         name: 'Address',
-        pattern: /(?:adres|address)\s*[:\s]?\s*[^,\n]{20,100}(?:mah|mahallesi|cad|cadde|sok|sokak|apt|apartman|kat|daire|no)/gi,
-        validate: () => true,
+        pattern: /(?:adres|address)\s*[:\s]?\s*[^,\n]{10,100}?\s*(?:mah|mahallesi|cad|cadde|sok|sokak|apt|apartman|kat|daire|blok|sitesi|köyü|ilçesi|county|street|st|road|rd|avenue|ave|building|floor)\b[^,\n]{0,50}/gi,
+        validate: (match) => {
+            const forbidden = ['http', 'www', '@', '.com'];
+            return !forbidden.some(f => match.includes(f));
+        },
         mask: () => '[ADDRESS_HIDDEN]'
     },
     {
-        name: 'ZIP Code (US)',
-        pattern: /\b\d{5}(?:-\d{4})?\b/g,
-        contextKeywords: ['zip', 'code', 'post', 'postal', 'address', 'mail'],
-        validate: (match, index, fullText, item) => hasContext(fullText, index, item.contextKeywords),
-        mask: () => '*****'
-    },
-    {
-        name: 'Postcode (UK)',
-        pattern: /\b[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}\b/gi,
-        contextKeywords: ['post', 'code', 'postal', 'address', 'mail'],
-        validate: (match, index, fullText, item) => hasContext(fullText, index, item.contextKeywords),
-        mask: () => '*** ***'
-    },
-    {
-        name: 'Driver License',
-        pattern: /(?:ehliyet|sürücü belgesi)\s*(?:no|numarası?)?\s*[:\s]?\s*\d{6,12}/gi,
+        name: 'Private Key',
+        pattern: /-----BEGIN\s+(?:[A-Z0-9]+\s+)?PRIVATE\s+KEY-----[\s\S]{50,}-----END\s+(?:[A-Z0-9]+\s+)?PRIVATE\s+KEY-----/gi,
         validate: () => true,
-        mask: () => '[LICENSE_HIDDEN]'
-    },
-    {
-        name: 'Passport No',
-        pattern: /(?:pasaport)\s*(?:no|numarası?)?\s*[:\s]?\s*[A-Z]?\d{7,9}/gi,
-        validate: () => true,
-        mask: () => '[PASSPORT_HIDDEN]'
-    },
-    {
-        name: 'Bank Account',
-        pattern: /(?:hesap)\s*(?:no|numarası?)?\s*[:\s]?\s*\d{10,16}/gi,
-        validate: () => true,
-        mask: () => '[ACCOUNT_HIDDEN]'
-    },
-    {
-        name: 'Webhook/API URL',
-        pattern: /https?:\/\/[^\s"']*(?:webhook|api|callback|hook|notify|slack|discord|teams)[^\s"']*/gi,
-        validate: () => true,
-        mask: () => '[WEBHOOK_URL_HIDDEN]'
-    },
-    {
-        name: 'JWT Token',
-        pattern: /eyJ[a-zA-Z0-9_-]{10,}\.eyJ[a-zA-Z0-9_-]{10,}\.[a-zA-Z0-9_-]{10,}/g,
-        validate: () => true,
-        mask: () => '[JWT_TOKEN_HIDDEN]'
-    },
-    {
-        name: 'GitHub Token',
-        pattern: /\b(?:ghp|gho|ghu|ghs|ghr)_[a-zA-Z0-9]{36,}\b/g,
-        validate: () => true,
-        mask: () => '[GITHUB_TOKEN_HIDDEN]'
-    },
-    {
-        name: 'Slack Token',
-        pattern: /xox[baprs]-[a-zA-Z0-9-]+/g,
-        validate: () => true,
-        mask: () => '[SLACK_TOKEN_HIDDEN]'
-    },
-    {
-        name: 'Google Cloud API Key',
-        pattern: /\bAIza[0-9A-Za-z\\-_]{35}\b/g,
-        validate: () => true,
-        mask: () => '[GCP_API_KEY_HIDDEN]'
-    },
-    {
-        name: 'Firebase Project ID',
-        pattern: /\b[a-z0-9-]{6,30}\b/g,
-        contextKeywords: ['firebase', 'project-id', 'projectid', 'app-id'],
-        validate: (match, index, fullText, item) => hasContext(fullText, index, item.contextKeywords),
-        mask: () => '[FIREBASE_PROJECT_HIDDEN]'
-    },
-    {
-        name: 'Azure Conn String',
-        pattern: /DefaultEndpointsProtocol=[^;]+;AccountName=[^;]+;AccountKey=[^;]+;?/gi,
-        validate: () => true,
-        mask: () => '[AZURE_CONN_HIDDEN]'
-    },
-    {
-        name: 'Secret Key (Generic)',
-        pattern: /\b[a-zA-Z0-9/+=]{40}\b/g,
-        contextKeywords: ['secret', 'key', 'token', 'auth', 'access', 'private'],
-        validate: (match, index, fullText, item) => {
-            // Check if it looks like base64 and has context
-            const isBase64 = /^[a-zA-Z0-9/+=]+$/.test(match);
-            return isBase64 && hasContext(fullText, index, item.contextKeywords);
-        },
-        mask: () => '[SECRET_KEY_HIDDEN]'
+        mask: () => '[PRIVATE_KEY_HIDDEN]'
     }
 ];
+
 
 // Detect sensitive data (Enhanced - with Validation and Context)
 function detectSensitiveData(text) {
