@@ -999,12 +999,16 @@ function init() {
         if (textArea && textArea !== currentTextArea) {
             if (currentTextArea) {
                 currentTextArea.removeEventListener('input', handleInput);
+                currentTextArea.removeEventListener('paste', handleInput);
+                currentTextArea.removeEventListener('change', handleInput);
                 currentTextArea.removeEventListener('focus', handleFocus);
                 currentTextArea.removeEventListener('blur', handleBlur);
             }
 
             currentTextArea = textArea;
             currentTextArea.addEventListener('input', handleInput);
+            currentTextArea.addEventListener('paste', () => setTimeout(handleInput, 0));
+            currentTextArea.addEventListener('change', handleInput);
             currentTextArea.addEventListener('focus', handleFocus);
             currentTextArea.addEventListener('blur', handleBlur);
 
