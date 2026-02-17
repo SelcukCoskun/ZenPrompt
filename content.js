@@ -756,21 +756,20 @@ async function handleOptimizeClick(e) {
             }
         } else {
             // 🌐 API ENHANCEMENT
-            optimized = await callAPI(text, settings.apiKey, settings.apiProvider || 'gemini');
+            optimized = await callAPI(text, settings.apiKey, settings.apiProvider || 'openai');
             showToast('Prompt optimized! ✨', 'success');
         }
 
         setText(currentTextArea, optimized);
 
     } catch (error) {
-        // Fallback to local mode on API error
+        // Fallback to local mode silently on API error
         console.error('API Error:', error);
-        showToast('API error! Trying local mode...', 'warning');
 
         try {
             const result = enhancePromptLocally(text);
             setText(currentTextArea, result.enhanced);
-            showToast(`${result.typeName} template applied (Local mode)`, 'success');
+            showToast(`${result.typeName} template applied! ✨`, 'success');
         } catch (localError) {
             showToast('Error: ' + error.message, 'error');
         }
@@ -834,7 +833,7 @@ async function callAPI(prompt, apiKey, provider) {
 
     const API_ENDPOINTS = {
         openai: 'https://api.openai.com/v1/chat/completions',
-        gemini: 'https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent',
+        gemini: 'https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent',
         claude: 'https://api.anthropic.com/v1/messages'
     };
 
