@@ -1,0 +1,226 @@
+/* Prompt Optimizer - Floating Button Styles */
+
+/* Floating Button */
+#prompt-optimizer-floating-btn {
+    position: absolute;
+    z-index: 2147483647;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(10px) scale(0.95);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+
+    background: linear-gradient(135deg, #0f766e, #0369a1);
+    border: none;
+    border-radius: 12px;
+    box-shadow:
+        0 4px 20px rgba(15, 118, 110, 0.4),
+        0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+
+    cursor: pointer;
+    user-select: none;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+#prompt-optimizer-floating-btn.po-visible {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0) scale(1);
+}
+
+#prompt-optimizer-floating-btn:hover {
+    transform: translateY(-2px) scale(1.02);
+    box-shadow:
+        0 6px 25px rgba(15, 118, 110, 0.5),
+        0 0 0 1px rgba(255, 255, 255, 0.2) inset;
+}
+
+#prompt-optimizer-floating-btn:active {
+    transform: translateY(0) scale(0.98);
+}
+
+#prompt-optimizer-floating-btn.po-loading-state {
+    pointer-events: none;
+    background: linear-gradient(135deg, #6b21a8, #9333ea);
+}
+
+/* Button Content */
+.po-btn-content,
+.po-loading {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.po-icon {
+    font-size: 18px;
+    animation: po-pulse 2s ease-in-out infinite;
+}
+
+@keyframes po-pulse {
+
+    0%,
+    100% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.1);
+    }
+}
+
+.po-text {
+    font-size: 14px;
+    font-weight: 600;
+    color: white;
+    white-space: nowrap;
+}
+
+/* Spinner */
+.po-spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: po-spin 0.8s linear infinite;
+}
+
+@keyframes po-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Toast Notification */
+.po-toast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    z-index: 2147483647;
+
+    padding: 12px 24px;
+    border-radius: 10px;
+
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    color: white;
+
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    opacity: 0;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.po-toast-visible {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+.po-toast-success {
+    background: linear-gradient(135deg, #059669, #10b981);
+}
+
+.po-toast-error {
+    background: linear-gradient(135deg, #dc2626, #ef4444);
+}
+
+.po-toast-warning {
+    background: linear-gradient(135deg, #d97706, #f59e0b);
+}
+
+.po-toast-info {
+    background: linear-gradient(135deg, #2563eb, #3b82f6);
+}
+
+/* Security Alert */
+#po-security-alert {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    width: 320px;
+    background: rgba(20, 20, 25, 0.95);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 69, 0, 0.3);
+    border-radius: 12px;
+    padding: 15px;
+    z-index: 100000;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 20px rgba(255, 69, 0, 0.1);
+    color: white;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    transform: translateY(100px);
+    opacity: 0;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+#po-security-alert.po-alert-visible {
+    transform: translateY(0);
+    opacity: 1;
+}
+
+.po-alert-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 600;
+    font-size: 15px;
+    margin-bottom: 8px;
+    color: #ffcc00;
+}
+
+.po-alert-msg {
+    font-size: 13px;
+    color: #ccc;
+    line-height: 1.5;
+    margin-bottom: 12px;
+}
+
+.po-alert-msg strong {
+    color: #fff;
+}
+
+.po-alert-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+}
+
+.po-alert-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    transition: all 0.2s;
+}
+
+.po-btn-yes {
+    background: rgba(76, 175, 80, 0.2);
+    color: #4caf50;
+    border: 1px solid rgba(76, 175, 80, 0.3);
+}
+
+.po-btn-yes:hover {
+    background: #4caf50;
+    color: white;
+}
+
+.po-btn-no {
+    background: rgba(244, 67, 54, 0.2);
+    color: #f44336;
+    border: 1px solid rgba(244, 67, 54, 0.3);
+}
+
+.po-btn-no:hover {
+    background: #f44336;
+    color: white;
+}

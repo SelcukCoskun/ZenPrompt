@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prompt Optimizer</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <div class="logo">⚡</div>
+      <h1>Prompt Optimizer</h1>
+      <p class="subtitle">Empower your prompts for AI</p>
+    </div>
+
+    <!-- API Key Section -->
+    <div class="api-section" id="apiSection">
+      <div class="api-toggle" id="apiToggle">
+        <span>🔑 API Settings</span>
+        <span class="toggle-icon">▼</span>
+      </div>
+      <div class="api-content" id="apiContent">
+        <select id="apiProvider" class="select-input">
+          <option value="openai">OpenAI (GPT-4)</option>
+          <option value="gemini">Google Gemini</option>
+          <option value="claude">Anthropic Claude</option>
+        </select>
+        <input type="password" id="apiKey" placeholder="Enter your API key..." class="text-input">
+        <button id="saveApiKey" class="btn btn-secondary">💾 Save</button>
+      </div>
+    </div>
+
+    <!-- Persona Selection Section -->
+    <div class="persona-section">
+      <div class="section-label">🎭 Choose Expert Persona</div>
+      <div class="persona-categories" id="personaCategories">
+        <button class="cat-btn active" data-category="all">All</button>
+        <button class="cat-btn" data-category="tech">Tech</button>
+        <button class="cat-btn" data-category="business">Business</button>
+        <button class="cat-btn" data-category="creative">Creative</button>
+        <button class="cat-btn" data-category="health">Health</button>
+      </div>
+      <div class="persona-grid" id="personaGrid">
+        <!-- Will be populated by JS -->
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+      <div class="input-group">
+        <label for="originalPrompt">📝 Original Prompt</label>
+        <textarea id="originalPrompt"
+          placeholder="Write the prompt you want to optimize here or get it from the page textbox..."></textarea>
+      </div>
+
+      <div class="button-group">
+        <button id="getFromPage" class="btn btn-outline">
+          📥 Get from Page
+        </button>
+        <button id="optimizeBtn" class="btn btn-primary">
+          ⚡ Optimize Prompt
+        </button>
+      </div>
+
+      <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <span>Optimizing...</span>
+      </div>
+
+      <div class="output-group" id="outputGroup">
+        <label for="optimizedPrompt">✨ Optimized Prompt</label>
+        <textarea id="optimizedPrompt" readonly></textarea>
+        <div class="action-buttons">
+          <button id="copyBtn" class="btn btn-secondary">
+            📋 Copy
+          </button>
+          <button id="sendToPage" class="btn btn-primary">
+            📤 Send to Page
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      <span class="status" id="status"></span>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+
+</html>
