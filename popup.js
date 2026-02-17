@@ -145,7 +145,7 @@ let selectedPersonaId = null;
 // API Endpoints
 const API_ENDPOINTS = {
   openai: 'https://api.openai.com/v1/chat/completions',
-  gemini: 'https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent',
+  gemini: 'https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent',
   claude: 'https://api.anthropic.com/v1/messages'
 };
 
@@ -341,19 +341,16 @@ optimizeBtn.addEventListener('click', async () => {
 
   const settings = await chrome.storage.local.get(['apiKey', 'apiProvider']);
 
-  if (!settings.apiKey) {
-    showStatus('API key required! Add it from settings.', 'error');
-    apiToggle.classList.add('active');
-    apiContent.classList.add('show');
-    return;
-  }
-
   // Show loading
   loading.classList.add('show');
   outputGroup.classList.remove('show');
   optimizeBtn.disabled = true;
 
   try {
+    if (!settings.apiKey) {
+      throw new Error('No API Key');
+    }
+
     const optimized = await callAPI(prompt, settings.apiKey, settings.apiProvider || 'openai');
 
     optimizedPrompt.value = optimized;
@@ -361,12 +358,157 @@ optimizeBtn.addEventListener('click', async () => {
     showStatus('Prompt optimized successfully! ✨', 'success');
 
   } catch (error) {
-    showStatus(`Error: ${error.message}`, 'error');
+    console.error('API Error:', error);
+
+    // Silent Fallback to Local Mode
+    try {
+      const result = enhancePromptLocally(prompt);
+      optimizedPrompt.value = result.enhanced;
+      outputGroup.classList.add('show');
+
+      if (result.missing.length > 0) {
+        showStatus(`${result.typeName} template applied | Missing: ${result.missing.join(', ')}`, 'info');
+      } else {
+        showStatus(`${result.typeName} template applied! ✨`, 'success');
+      }
+
+    } catch (localError) {
+      showStatus(`Error: ${error.message}`, 'error');
+    }
   } finally {
     loading.classList.remove('show');
     optimizeBtn.disabled = false;
   }
 });
+
+// ========== LOCAL PROMPT ENHANCEMENT (API-LESS) ==========
+
+const PROMPT_TYPES = {
+  code: {
+    keywords: ['python', 'javascript', 'java', 'c++', 'c#', 'php', 'ruby', 'go', 'rust', 'swift', 'kotlin', 'typescript', 'sql', 'html', 'css', 'react', 'vue', 'angular', 'node', 'django', 'flask', 'code', 'script', 'program', 'function', 'class', 'api', 'database', 'backend', 'frontend', 'algorithm', 'debug', 'error', 'app', 'web', 'mobile', 'bot', 'automation'],
+    role: { en: 'You are an experienced software developer.', tr: 'Sen deneyimli bir yazılım geliştiricisisin.' },
+    format: { en: 'Clean, commented code + explanation', tr: 'Temiz, yorumlanmış kod + açıklama' },
+    template: 'code'
+  },
+  writing: {
+    keywords: ['write', 'article', 'blog', 'content', 'text', 'story', 'script', 'poem', 'slogan', 'title', 'summary', 'translate', 'edit', 'email', 'letter', 'report', 'presentation', 'cv', 'biography', 'advertising', 'marketing', 'social media', 'tweet', 'post', 'caption'],
+    role: { en: 'You are a creative and experienced content writer.', tr: 'Sen yaratıcı ve deneyimli bir içerik yazarısın.' },
+    format: { en: 'Organized paragraphs, headings, and subheadings', tr: 'Düzenli paragraflar, başlıklar ve alt başlıklar' },
+    template: 'writing'
+  },
+  analysis: {
+    keywords: ['analysis', 'compare', 'evaluate', 'examine', 'research', 'statistics', 'data', 'trend', 'predict', 'forecast', 'swot', 'market', 'competitor', 'price', 'cost', 'risk', 'opportunity', 'pros', 'cons'],
+    role: { en: 'You are an expert analyst capable of detailed analysis.', tr: 'Sen detaylı analizler yapabilen uzman bir analistsin.' },
+    format: { en: 'Headings, tables, bullet points, and conclusion section', tr: 'Başlıklar, tablolar, madde işaretleri ve sonuç bölümü' },
+    template: 'analysis'
+  },
+  education: {
+    keywords: ['explain', 'teach', 'what is', 'how', 'why', 'when', 'who', 'example', 'show', 'step', 'guide', 'tutorial', 'lesson', 'course', 'training', 'learn', 'beginner', 'basic', 'advanced', 'tip', 'trick'],
+    role: { en: 'You are a patient and explanatory educator.', tr: 'Sen sabırlı ve açıklayıcı bir eğitmensin.' },
+    format: { en: 'Step-by-step explanations, examples, and summary', tr: 'Adım adım açıklamalar, örnekler ve özet' },
+    template: 'education'
+  },
+  image: {
+    keywords: ['draw', 'generate', 'image', 'photo', 'picture', 'painting', 'sketch', 'illustration', 'render', 'resmet', 'çiz', 'görüntü', 'resim', 'fotoğraf', 'tasarla', 'oluştur'],
+    role: { en: 'You are an expert AI Image Prompt Engineer.', tr: 'Sen uzman bir Yapay Zeka Görsel Prompt Mühendisisin.' },
+    format: { en: 'Detailed descriptive prompt including style, composition, and lighting', tr: 'Stil, kompozisyon ve ışıklandırma içeren detaylı açıklayıcı prompt' },
+    template: 'image'
+  },
+  general: {
+    keywords: [],
+    role: { en: 'You are a helpful and knowledgeable assistant.', tr: 'Sen yardımcı ve bilgili bir asistansın.' },
+    format: { en: 'Organized and clear text', tr: 'Düzenli ve açık metin' },
+    template: 'general'
+  }
+};
+
+function detectPromptType(text) {
+  const lowerText = text.toLowerCase();
+  let bestMatch = { type: 'general', score: 0 };
+
+  for (const [type, config] of Object.entries(PROMPT_TYPES)) {
+    if (type === 'general') continue;
+    let score = 0;
+    for (const keyword of config.keywords) {
+      if (lowerText.includes(keyword.toLowerCase())) score++;
+    }
+    if (score > bestMatch.score) bestMatch = { type, score };
+  }
+  return bestMatch.type;
+}
+
+function checkMissingComponents(text) {
+  const missing = [];
+  const lowerText = text.toLowerCase();
+  const rolKeywords = ['you ', 'as a', 'act as', 'role of', 'expert', 'professional'];
+  if (!rolKeywords.some(k => lowerText.includes(k))) missing.push('Role');
+
+  const formatKeywords = ['format', 'list', 'table', 'bullet', 'paragraph', 'code', 'json', 'markdown'];
+  if (!formatKeywords.some(k => lowerText.includes(k))) missing.push('Format');
+
+  if (text.length < 50) missing.push('Detail');
+
+  const limitKeywords = ['only', 'maximum', 'minimum', 'at most', 'at least', 'short', 'long', 'limit'];
+  if (!limitKeywords.some(k => lowerText.includes(k))) missing.push('Constraint');
+
+  return missing;
+}
+
+function enhancePromptLocally(text) {
+  const lang = detectLanguage(text);
+  const promptType = detectPromptType(text);
+  const config = PROMPT_TYPES[promptType];
+  const missing = checkMissingComponents(text);
+
+  const labels = {
+    en: { role: '**ROLE**', context: '**CONTEXT**', task: '**TASK**', reqs: '**REQUIREMENTS**', format: '**FORMAT**', constraints: '**CONSTRAINTS**', contextMsg: 'User is asking for help on the following topic.', limitMsg: 'Do not over-extend, focus on the topic.', imgStyle: '**STYLE**', imgComp: '**COMPOSITION**', imgLight: '**LIGHTING**', imgCamera: '**CAMERA/LENS**', imgNegative: '**NEGATIVE PROMPT**' },
+    tr: { role: '**ROL**', context: '**BAĞLAM**', task: '**GÖREV**', reqs: '**GEREKSİNİMLER**', format: '**FORMAT**', constraints: '**KISITLAMALAR**', contextMsg: 'Kullanıcı aşağıdaki konu hakkında yardım istiyor.', limitMsg: 'Gereksiz uzatmayın, konuya odaklanın.', imgStyle: '**STİL**', imgComp: '**KOMPOZİSYON**', imgLight: '**IŞIKLANDIRMA**', imgCamera: '**KAMERA/LENS**', imgNegative: '**NEGATİF PROMPT**' }
+  }[lang];
+
+  const requirements = {
+    en: {
+      code: ['- Write clean, readable, and well-structured code', '- Explain each part of the code with comments', '- Consider error handling and edge cases', '- Show example usage'],
+      writing: ['- Use fluent and engaging language', '- Choose a tone appropriate for the target audience', '- Organize with headings and subheadings', '- Add a concluding paragraph'],
+      analysis: ['- Be objective and data-driven', '- List pros and cons', '- Use a comparative table', '- Present results and recommendations'],
+      education: ['- Use simple and clear language', '- Explain step-by-step', '- Provide concrete examples', '- Add summary and practical tips'],
+      image: ['- Describe the subject in vivid detail', '- Specify artistic style and medium', '- Define camera angle and depth of field', '- Add atmospheric effects and lighting details'],
+      general: ['- Be clear and concise', '- Add necessary details', '- Use an organized structure']
+    },
+    tr: {
+      code: ['- Temiz, okunabilir ve iyi yapılandırılmış kod yazın', '- Kodun her bölümünü yorumlarla açıklayın', '- Hata ayıklama ve uç durumları göz önünde bulundurun', '- Örnek kullanım gösterin'],
+      writing: ['- Akıcı ve ilgi çekici bir dil kullanın', '- Hedef kitleye uygun bir ton seçin', '- Başlıklar ve alt başlıklarla düzenleyin', '- Sonuç paragrafı ekleyin'],
+      analysis: ['- Objektif ve veriye dayalı olun', '- Avantaj ve dezavantajları listeleyin', '- Karşılaştırmalı tablo kullanın', '- Sonuç ve öneriler sunun'],
+      education: ['- Basit ve açık bir dil kullanın', '- Adım adım açıklayın', '- Somut örnekler verin', '- Özet ve pratik ipuçları ekleyin'],
+      image: ['- Konuyu canlı detaylarla açıklayın', '- Sanatsal stili ve ortamı belirtin', '- Kamera açısını ve alan derinliğini tanımlayın', '- Atmosferik efektler ve ışıklandırma detayları ekleyin'],
+      general: ['- Açık ve öz olun', '- Gerekli detayları ekleyin', '- Düzenli bir yapı kullanın']
+    }
+  }[lang];
+
+  let enhanced = '';
+  enhanced += `${labels.role}: ${config.role[lang]}\n\n`;
+
+  if (promptType === 'image') {
+    enhanced += `${labels.context}: ${text}\n\n`;
+    enhanced += `${labels.imgStyle}: [Style: e.g. Cinematic, Cyberpunk, Oil Painting, Hyper-realistic]\n`;
+    enhanced += `${labels.imgComp}: [Composition: e.g. Wide shot, Close-up, Golden Ratio]\n`;
+    enhanced += `${labels.imgLight}: [Lighting: e.g. Golden Hour, Moody, Neon, Volumetric]\n`;
+    enhanced += `${labels.imgCamera}: [Camera: e.g. 85mm lens, f/1.8, ISO 100]\n`;
+    enhanced += `${labels.imgNegative}: [Avoid: e.g. blurry, low quality, distorted hands]\n\n`;
+  } else {
+    enhanced += `${labels.context}: ${labels.contextMsg}\n\n`;
+    enhanced += `${labels.task}: ${text}\n\n`;
+  }
+
+  enhanced += `${labels.reqs}:\n`;
+  const reqList = requirements[promptType] || requirements.general;
+  reqList.forEach(r => enhanced += `${r}\n`);
+
+  enhanced += `\n${labels.format}: ${config.format[lang]}\n\n`;
+  enhanced += `${labels.constraints}: ${labels.limitMsg}`;
+
+  return { enhanced, promptType, missing, typeName: lang === 'tr' ? (promptType === 'code' ? '💻 Kod' : promptType === 'writing' ? '✍️ Yazı' : promptType === 'analysis' ? '📊 Analiz' : promptType === 'education' ? '📚 Eğitim' : '📝 Genel') : (promptType === 'code' ? '💻 Code' : promptType === 'writing' ? '✍️ Writing' : promptType === 'analysis' ? '📊 Analysis' : promptType === 'education' ? '📚 Education' : '📝 General') };
+}
+
 
 // Copy to Clipboard
 copyBtn.addEventListener('click', async () => {
