@@ -221,13 +221,15 @@ const SENSITIVE_PATTERNS = [
     },
     {
         name: 'Password',
-        pattern: /(?:password|şifre|parola|pwd|pass|sifre|secret)[\s:=]+["']?([^\s"']{4,64})["']?/gi,
+        // Flexible pattern: keyword + optional words + (delimiter or 'is') + value
+        pattern: /(?:password|şifre|parola|pwd|pass|sifre|secret)(?:\s+[\w\s]{1,40})?(?:[:=]|\s+is\s+)["']?([^\s"']{4,64})["']?/gi,
         validate: (match) => {
-            const parts = match.split(/[:=]/);
-            if (parts.length < 2) return false;
-            const value = parts[1].replace(/["'\s]/g, '');
+            const forbidden = ['example', 'test', 'your', 'dummy', 'null', 'undefined', 'password', 'şifre'];
+            // Extract the actual value (last part)
+            const parts = match.trim().split(/[\s:=]+/);
+            const value = parts[parts.length - 1].replace(/["'\s]/g, '');
             const placeholders = ['****', 'xxxx', '1234', 'password', 'şifre', 'test', 'sample', 'admin', 'qwerty', 'root'];
-            return value.length >= 4 && !placeholders.includes(value.toLowerCase());
+            return value.length >= 4 && !placeholders.includes(value.toLowerCase()) && !forbidden.some(f => value.toLowerCase().includes(f));
         },
         mask: () => '[PASSWORD_HIDDEN]'
     },
@@ -272,7 +274,7 @@ const SENSITIVE_PATTERNS = [
     {
         name: 'Phone Number',
         pattern: /(?:\+?\d{1,3}[\s.-]?)?\(?\d{2,4}\)?[\s.-]?\d{3,4}[\s.-]?\d{2,4}(?:[\s.-]?\d{2,4})?/g,
-        contextKeywords: ['tel', 'phone', 'gsm', 'numara', 'contact', 'call', 'mobile', 'cep'],
+        contextKeywords: ['tel', 'phone', 'gsm', 'numara', 'contact', 'call', 'mobile', 'cep', 'cell', 'ulaş', 'ara'],
         validate: (match, index, fullText, item) => {
             const digits = match.replace(/[^\d]/g, '');
             if (digits.length < 7 || digits.length > 15) return false;
