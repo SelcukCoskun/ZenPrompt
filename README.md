@@ -4,6 +4,14 @@
 
 Stop struggling with vague AI responses—get the results you want with professionally engineered prompts, instantly.
 
+
+<div align="center">
+
+  <video src="https://github.com/user-attachments/assets/cc6e0a2c-ac96-4e64-8529-554ebe78fd33" width="100%" loop autoplay muted playsinline></video>
+
+</div>
+
+
 ## 🚀 Key Features
 
 - **🌐 Multi-Site Integration**: Seamlessly works on ChatGPT, Gemini, Claude, Poe, Perplexity, and Google AI Studio.
