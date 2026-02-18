@@ -6,7 +6,7 @@ Stop struggling with vague AI responses—get the results you want with professi
 
 
 <div align="center">
-  <img src="https://github.com/user-attachments/assets/cc6e0a2c-ac96-4e64-8529-554ebe78fd33" width="100%">
+  <video src="https://github.com/user-attachments/assets/cc6e0a2c-ac96-4e64-8529-554ebe78fd33" width="100%" autoplay="autoplay" loop="loop" muted="muted" playsinline="playsinline"></video>
 </div>
 
 
